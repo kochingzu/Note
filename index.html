@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圖像組織特務闖關遊戲</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc;
+            color: #1e293b;
+        }
+        .quiz-option {
+            transition: all 0.2s ease;
+        }
+        .quiz-option:not(:disabled):hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .heart-pulse {
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+        .timer-danger {
+            color: #ef4444;
+            animation: flash 1s infinite;
+        }
+        @keyframes flash {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <main class="w-full max-w-4xl">
+        <div class="bg-slate-800 rounded-3xl shadow-2xl p-6 md:p-10 text-white relative overflow-hidden border-4 border-slate-700">
+            <!-- 裝飾背景 -->
+            <div class="absolute top-0 right-0 -mt-8 -mr-8 text-9xl text-slate-700 opacity-30 z-0 pointer-events-none">
+                <i class="fas fa-crosshairs"></i>
+            </div>
+            
+            <div class="relative z-10">
+                <div class="flex flex-col md:flex-row md:justify-between md:items-end mb-6 border-b border-slate-600 pb-4">
+                    <div>
+                        <span class="bg-indigo-500 text-white text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">七年級閱讀策略</span>
+                        <h1 class="text-3xl md:text-4xl font-black text-amber-400 mt-3">
+                            <i class="fas fa-user-secret mr-2"></i> 圖像特務闖關遊戲
+                        </h1>
+                    </div>
+                </div>
+
+                <!-- 遊戲互動區塊 -->
+                <div id="quiz-container" class="bg-slate-50 text-slate-800 rounded-2xl p-5 md:p-8 shadow-inner min-h-[400px] flex flex-col justify-center">
+                    
+                    <!-- 1. 開始畫面 -->
+                    <div id="start-screen" class="text-center py-8">
+                        <div class="text-6xl mb-6 text-indigo-500"><i class="fas fa-shield-alt"></i></div>
+                        <h2 class="text-3xl font-black mb-4 text-slate-800">特務解碼任務</h2>
+                        <p class="text-lg text-slate-600 mb-8 max-w-xl mx-auto leading-relaxed">
+                            請根據情境提示，選出最適合的「圖像組織工具」。<br>
+                            你有 <strong class="text-red-500">3 顆愛心</strong>，每題限時 <strong class="text-indigo-600">30 秒</strong>，答錯不給答案，只會給你線索喔！
+                        </p>
+                        <div class="flex justify-center gap-4 mb-8 text-sm font-bold text-slate-500 bg-slate-100 py-3 rounded-xl max-w-md mx-auto">
+                            <span><i class="fas fa-random mr-1"></i> 隨機題庫</span>
+                            <span>|</span>
+                            <span><i class="fas fa-stopwatch mr-1"></i> 限時挑戰</span>
+                            <span>|</span>
+                            <span><i class="fas fa-heart text-red-400 mr-1"></i> 扣血機制</span>
+                        </div>
+                        <button onclick="startQuiz()" class="bg-amber-500 hover:bg-amber-600 text-white font-black py-4 px-10 rounded-full text-xl shadow-lg transform transition hover:scale-105 border-b-4 border-amber-700 active:translate-y-1 active:border-b-0">
+                            開始任務 <i class="fas fa-play ml-2"></i>
+                        </button>
+                    </div>
+
+                    <!-- 2. 題目畫面 -->
+                    <div id="question-screen" class="hidden h-full flex flex-col">
+                        <!-- 狀態列 -->
+                        <div class="flex flex-wrap justify-between items-center mb-6 bg-white p-4 rounded-xl border-2 border-slate-200 shadow-sm gap-4">
+                            <span id="q-counter" class="bg-indigo-600 text-white font-bold px-4 py-2 rounded-lg text-sm shadow-inner">
+                                任務 1 / 10
+                            </span>
+                            
+                            <div class="flex items-center gap-6">
+                                <!-- 愛心顯示區 -->
+                                <span class="text-red-500 text-xl tracking-widest flex items-center" id="hearts-display">
+                                    <!-- 由 JS 生成 -->
+                                </span>
+                                
+                                <!-- 計時器 -->
+                                <span class="font-black text-slate-700 text-lg flex items-center gap-2" id="timer-container">
+                                    <i class="fas fa-stopwatch text-indigo-500 text-xl"></i> 
+                                    <span id="time-left" class="w-8 text-center font-mono text-2xl">30</span>
+                                </span>
+                                
+                                <!-- 分數 -->
+                                <span class="text-amber-500 font-black text-lg bg-amber-50 px-3 py-1 rounded-lg">
+                                    <i class="fas fa-star"></i> <span id="score-display">0</span>
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- 題目區 -->
+                        <div class="mb-6">
+                            <div class="flex items-start gap-3">
+                                <i class="fas fa-file-signature text-2xl text-indigo-600 mt-1"></i>
+                                <p id="q-text" class="text-xl md:text-2xl text-slate-800 font-bold leading-relaxed"></p>
+                            </div>
+                        </div>
+                        
+                        <!-- 選項區 -->
+                        <div id="options-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-auto">
+                            <!-- 選項按鈕會由 JS 隨機生成 -->
+                        </div>
+
+                        <!-- 回饋與線索區 -->
+                        <div id="feedback-area" class="hidden mt-6 p-5 rounded-xl border-2 transition-all">
+                            <!-- 內容由 JS 生成 -->
+                        </div>
+                        
+                        <!-- 下一題按鈕 -->
+                        <div class="text-right mt-6">
+                            <button id="next-btn" onclick="nextQuestion()" class="hidden bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transform transition hover:scale-105 border-b-4 border-indigo-800 active:translate-y-1 active:border-b-0">
+                                進入下一關 <i class="fas fa-arrow-right ml-2"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 3. 結算畫面 -->
+                    <div id="result-screen" class="hidden text-center py-10 flex flex-col items-center justify-center h-full">
+                        <div class="text-8xl mb-6 heart-pulse drop-shadow-lg" id="result-icon">🏆</div>
+                        <h3 class="text-4xl font-black text-slate-800 mb-2" id="result-title">任務完成！</h3>
+                        
+                        <div class="bg-white px-8 py-6 rounded-2xl shadow-sm border-2 border-slate-100 my-6 w-full max-w-sm">
+                            <p class="text-slate-500 font-bold mb-1">特務最終積分</p>
+                            <p class="text-amber-500 font-black text-6xl"><span id="final-score"></span></p>
+                        </div>
+
+                        <p id="result-message" class="text-slate-600 mb-10 font-bold text-xl max-w-md leading-relaxed"></p>
+                        
+                        <button onclick="resetQuiz()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold py-4 px-10 rounded-full shadow-lg transition transform hover:scale-105 border-b-4 border-black active:translate-y-1 active:border-b-0 text-lg">
+                            <i class="fas fa-redo-alt mr-2"></i> 再次挑戰任務
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 遊戲邏輯腳本 -->
+    <script>
+        // 【題庫設定】包含 10 題情境，包含線索但不包含答錯時的正確答案提示
+        const allQuestionsData = [
+            {
+                context: "輔導老師請你幫忙整理「國小」與「國中」生活的差異。你需要列出它們的「不同點」，以及把它們的「共同點」（例如都要寫作業）寫在中間。",
+                options: ["樹狀圖", "文氏圖", "流程圖", "心智圖"],
+                answer: "文氏圖",
+                hint: "這種圖形有交疊的圈圈，專門用來找「交集(共同點)」與「差異」喔！"
+            },
+            {
+                context: "生教組長要求各班製作「地震逃生指南」，必須清楚標示「第一步：趴下掩護」➔「第二步：聽廣播疏散」➔「第三步：到操場集合」的先後順序。",
+                options: ["流程圖", "T形圖", "因果圖(魚骨圖)", "文氏圖"],
+                answer: "流程圖",
+                hint: "這需要明確的「先後順序」和步驟，通常會有箭頭指引發展方向！"
+            },
+            {
+                context: "班會課正在討論「校外教學該去遊樂園還是博物館？」。你需要把去遊樂園的「優點」和「缺點」左右並列出來，讓全班一目了然。",
+                options: ["心智圖", "因果圖(魚骨圖)", "樹狀圖", "T形圖"],
+                answer: "T形圖",
+                hint: "像天平一樣左右分明，最適合用來比較「正反兩面」或「優缺點」。"
+            },
+            {
+                context: "生物老師要你整理一份「動物分類表」。從最上層的「動物界」，往下分為「脊索動物」、「節肢動物」，再往下細分到各種不同的動物。",
+                options: ["樹狀圖", "流程圖", "文氏圖", "T形圖"],
+                answer: "樹狀圖",
+                hint: "像植物的根或枝幹一樣，從一個「大分類」不斷往下細分成各種「小分類」。"
+            },
+            {
+                context: "校慶園遊會快到了！班長請大家發揮創意，從中間的「園遊會主題」開始，向外延伸出「販賣商品」、「宣傳方式」等方向，盡情發想點子。",
+                options: ["流程圖", "文氏圖", "心智圖", "因果圖(魚骨圖)"],
+                answer: "心智圖",
+                hint: "從一個中心點出發，像大腦神經元一樣向四面八方自由聯想！"
+            },
+            {
+                context: "大隊接力比賽不幸落敗。為了下次進步，大家聚在一起分析「導致掉棒落敗」的各種原因（例如：默契不足、跑道濕滑），試圖找出主因。",
+                options: ["因果圖(魚骨圖)", "T形圖", "樹狀圖", "流程圖"],
+                answer: "因果圖(魚骨圖)",
+                hint: "要找出導致某個「結果」的各種「原因」，形狀長得很像吃剩的海鮮骨架。"
+            },
+            {
+                context: "體育老師請你比較「籃球」和「足球」的規則，找出它們獨特的地方，以及都要把球弄進目標得分的「共同點」。",
+                options: ["文氏圖", "流程圖", "心智圖", "樹狀圖"],
+                answer: "文氏圖",
+                hint: "當你需要找出兩樣東西的「重疊區」與「各自獨立區」時，這是最佳選擇！"
+            },
+            {
+                context: "歷史老師請你整理「孫中山十次革命」到最後建立中華民國的歷史事件發展過程。",
+                options: ["T形圖", "因果圖(魚骨圖)", "流程圖", "心智圖"],
+                answer: "流程圖",
+                hint: "歷史事件最講究「時間的先後發展」，把發生的事情一格一格串連起來。"
+            },
+            {
+                context: "圖書館長想做一張海報，介紹館內的圖書分類，從「總類」往下分出「文學類」、「科學類」，科學類再細分為「物理」、「化學」。",
+                options: ["樹狀圖", "文氏圖", "T形圖", "因果圖(魚骨圖)"],
+                answer: "樹狀圖",
+                hint: "遇到「層級關係」或大項目包含小項目的分類表時，最適合用這個！"
+            },
+            {
+                context: "班會課正在討論班規：「是否開放帶手機來學校」。黑板上需要列出「贊成方」與「反對方」的各種理由。",
+                options: ["流程圖", "心智圖", "因果圖(魚骨圖)", "T形圖"],
+                answer: "T形圖",
+                hint: "面對「二元對立」（贊成與反對）的意見，畫一條線分成左右兩邊最清楚！"
+            }
+        ];
+
+        // 系統狀態變數
+        let gameQuestions = [];
+        let currentQIndex = 0;
+        let score = 0;
+        let hearts = 3;
+        let timeLeft = 30;
+        let timerInterval = null;
+        let isQuestionResolved = false;
+
+        // DOM 元素對應
+        const screens = {
+            start: document.getElementById('start-screen'),
+            question: document.getElementById('question-screen'),
+            result: document.getElementById('result-screen')
+        };
+        const els = {
+            counter: document.getElementById('q-counter'),
+            text: document.getElementById('q-text'),
+            optionsGrid: document.getElementById('options-grid'),
+            feedbackArea: document.getElementById('feedback-area'),
+            nextBtn: document.getElementById('next-btn'),
+            scoreDisplay: document.getElementById('score-display'),
+            heartsDisplay: document.getElementById('hearts-display'),
+            timerDisplay: document.getElementById('time-left'),
+            timerContainer: document.getElementById('timer-container')
+        };
+
+        // 洗牌演算法 (Fisher-Yates) - 用於題目與選項隨機化
+        function shuffleArray(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex !== 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        // 更新愛心生命值顯示
+        function updateHeartsDisplay() {
+            let heartsHtml = '';
+            for (let i = 0; i < 3; i++) {
+                if (i < hearts) {
+                    heartsHtml += '<i class="fas fa-heart text-red-500 mx-1 drop-shadow-sm"></i>';
+                } else {
+                    heartsHtml += '<i class="fas fa-heart-broken text-slate-200 mx-1"></i>';
+                }
+            }
+            els.heartsDisplay.innerHTML = heartsHtml;
+        }
+
+        // 開始遊戲
+        function startQuiz() {
+            screens.start.classList.add('hidden');
+            screens.result.classList.add('hidden');
+            screens.question.classList.remove('hidden');
+            
+            // 重置數值
+            currentQIndex = 0;
+            score = 0;
+            hearts = 3;
+            els.scoreDisplay.innerText = score;
+            updateHeartsDisplay();
+            
+            // 拷貝並洗牌題庫 (每次玩順序都不同)
+            gameQuestions = shuffleArray([...allQuestionsData]);
+            
+            loadQuestion();
+        }
+
+        // 載入題目
+        function loadQuestion() {
+            isQuestionResolved = false;
+            const q = gameQuestions[currentQIndex];
+            
+            els.counter.innerText = `任務 ${currentQIndex + 1} / ${gameQuestions.length}`;
+            els.text.innerText = q.context;
+            
+            // 處理選項 (每次選項位置隨機打亂)
+            els.optionsGrid.innerHTML = '';
+            const shuffledOptions = shuffleArray([...q.options]);
+            
+            shuffledOptions.forEach(optText => {
+                const btn = document.createElement('button');
+                btn.className = 'quiz-option bg-white border-2 border-slate-200 text-slate-700 font-bold py-4 px-6 rounded-xl text-left text-lg shadow-sm';
+                btn.innerText = optText;
+                btn.onclick = () => selectAnswer(optText, btn);
+                els.optionsGrid.appendChild(btn);
+            });
+
+            // 隱藏回饋區與下一關按鈕
+            els.feedbackArea.classList.add('hidden');
+            els.feedbackArea.className = 'hidden mt-6 p-5 rounded-xl border-2 transition-all';
+            els.nextBtn.classList.add('hidden');
+            
+            if(currentQIndex === gameQuestions.length - 1) {
+                els.nextBtn.innerHTML = '查看任務報告 <i class="fas fa-flag-checkered ml-2"></i>';
+            } else {
+                els.nextBtn.innerHTML = '進入下一關 <i class="fas fa-arrow-right ml-2"></i>';
+            }
+
+            startTimer();
+        }
+
+        // 啟動 30 秒倒數
+        function startTimer() {
+            clearInterval(timerInterval);
+            timeLeft = 30;
+            els.timerDisplay.innerText = timeLeft;
+            els.timerContainer.classList.remove('timer-danger');
+            
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                els.timerDisplay.innerText = timeLeft;
+                
+                // 最後 5 秒顯示警告特效
+                if (timeLeft <= 5 && timeLeft > 0) {
+                    els.timerContainer.classList.add('timer-danger');
+                }
+                
+                // 時間到
+                if (timeLeft <= 0) {
+                    handleWrongAnswer("⏳ 時間到！動作太慢啦！", null);
+                }
+            }, 1000);
+        }
+
+        // 玩家點擊選項
+        function selectAnswer(selectedText, btnElement) {
+            if (isQuestionResolved) return; // 已經答對或結束則不反應
+
+            const q = gameQuestions[currentQIndex];
+
+            if (selectedText === q.answer) {
+                // =============== 答對邏輯 ===============
+                clearInterval(timerInterval);
+                isQuestionResolved = true;
+                
+                // 按鈕樣式變化 (正確)
+                btnElement.classList.remove('border-slate-200', 'text-slate-700');
+                btnElement.classList.add('border-green-500', 'bg-green-100', 'text-green-800', 'shadow-md', 'scale-[1.02]');
+                
+                disableAllOptions();
+                
+                // 加分
+                score += 10;
+                els.scoreDisplay.innerText = score;
+                
+                // 顯示成功回饋
+                els.feedbackArea.innerHTML = `
+                    <div class="flex items-center text-green-700">
+                        <i class="fas fa-check-circle text-3xl mr-3"></i> 
+                        <span class="text-xl font-bold">解碼成功！完美的判斷！</span>
+                    </div>`;
+                els.feedbackArea.classList.remove('hidden', 'bg-amber-50', 'border-amber-200');
+                els.feedbackArea.classList.add('bg-green-50', 'border-green-200');
+                
+                els.nextBtn.classList.remove('hidden');
+            } else {
+                // =============== 答錯邏輯 ===============
+                handleWrongAnswer("❌ 哎呀，選錯了工具！", btnElement);
+            }
+        }
+
+        // 處理答錯或超時 (扣心、給線索)
+        function handleWrongAnswer(reasonTitle, btnElement) {
+            hearts--;
+            updateHeartsDisplay();
+            
+            // 畫面錯誤震動特效
+            screens.question.classList.remove('shake');
+            void screens.question.offsetWidth; // 觸發重繪
+            screens.question.classList.add('shake');
+
+            const q = gameQuestions[currentQIndex];
+
+            if (btnElement) {
+                // 把點錯的按鈕變灰且不能再點
+                btnElement.classList.remove('border-slate-200', 'hover:border-indigo-500', 'text-slate-700');
+                btnElement.classList.add('border-slate-300', 'bg-slate-100', 'text-slate-400', 'cursor-not-allowed', 'opacity-60');
+                btnElement.disabled = true;
+            }
+
+            if (hearts <= 0) {
+                // 愛心歸零：遊戲結束
+                clearInterval(timerInterval);
+                isQuestionResolved = true;
+                disableAllOptions();
+                
+                // 強制結束延遲一下讓玩家看清楚
+                setTimeout(() => {
+                    gameOver(false);
+                }, 1000);
+            } else {
+                // 還有愛心：重置時間，給予線索
+                clearInterval(timerInterval);
+                timeLeft = 30; // 重新給 30 秒思考
+                startTimer();
+                
+                // 顯示線索 (不給正確答案)
+                els.feedbackArea.innerHTML = `
+                    <div class="text-red-600 mb-3 font-bold text-lg flex items-center">
+                        <i class="fas fa-heart-broken mr-2"></i> ${reasonTitle} (失去 1 顆愛心)
+                    </div>
+                    <div class="bg-amber-100 text-amber-900 p-4 rounded-lg flex items-start border border-amber-200">
+                        <i class="fas fa-search text-amber-600 mt-1 mr-3 text-xl"></i>
+                        <div>
+                            <strong class="block mb-1 text-amber-800">特務線索：</strong>
+                            <span class="font-medium">${q.hint}</span>
+                        </div>
+                    </div>
+                `;
+                els.feedbackArea.classList.remove('hidden', 'bg-green-50', 'border-green-200');
+                els.feedbackArea.classList.add('bg-white', 'border-amber-200');
+            }
+        }
+
+        // 鎖定所有選項
+        function disableAllOptions() {
+            const buttons = document.querySelectorAll('.quiz-option');
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                if(!btn.classList.contains('border-green-500')) {
+                    btn.classList.add('cursor-not-allowed');
+                }
+            });
+        }
+
+        // 進入下一題
+        function nextQuestion() {
+            currentQIndex++;
+            if (currentQIndex < gameQuestions.length) {
+                loadQuestion();
+            } else {
+                gameOver(true); // 全部答完，通關
+            }
+        }
+
+        // 遊戲結算
+        function gameOver(isWin) {
+            clearInterval(timerInterval);
+            screens.question.classList.add('hidden');
+            screens.result.classList.remove('hidden');
+            
+            document.getElementById('final-score').innerText = score;
+            const titleEl = document.getElementById('result-title');
+            const msgEl = document.getElementById('result-message');
+            const iconEl = document.getElementById('result-icon');
+            
+            if (!isWin) {
+                // 失敗
+                iconEl.innerText = "💥";
+                titleEl.innerText = "任務失敗！";
+                titleEl.classList.replace('text-slate-800', 'text-red-600');
+                msgEl.innerText = "愛心已耗盡！情報整理失敗。別灰心，重頭再來一次，仔細看線索喔！";
+            } else {
+                // 成功
+                titleEl.classList.replace('text-red-600', 'text-slate-800');
+                if (score === 100 && hearts === 3) {
+                    iconEl.innerText = "👑";
+                    titleEl.innerText = "完美通關！";
+                    msgEl.innerText = "太神啦！無傷通關，你是傳說中的 S 級圖像收納大師，大腦運算速度堪比超級電腦！";
+                } else if (score >= 60) {
+                    iconEl.innerText = "🎖️";
+                    titleEl.innerText = "任務達成！";
+                    msgEl.innerText = "表現不錯喔！雖然受了點傷，但你已經成功掌握了大部分的圖像解碼工具！";
+                } else {
+                    iconEl.innerText = "😅";
+                    titleEl.innerText = "勉強過關！";
+                    msgEl.innerText = "有驚無險地完成了任務！建議再挑戰一次，把這些工具刻在腦袋裡！";
+                }
+            }
+        }
+
+        // 重新開始
+        function resetQuiz() {
+            startQuiz();
+        }
+    </script>
+</body>
+</html>
